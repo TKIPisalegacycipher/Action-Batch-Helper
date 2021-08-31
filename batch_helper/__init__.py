@@ -112,15 +112,13 @@ class BatchHelper:
             self.required_batch_org_id = self.alternateOrganizationId
 
     def group_actions(self):
-        # Groups actions into lists of appropriate size
-        # Returns a list generator
+        """ Groups actions into lists of appropriate size and returns a list generator. """
         total_actions = len(self.new_actions)
         for i in range(0, total_actions, self.actions_per_new_batch):
             yield self.new_actions[i:i + self.actions_per_new_batch]
 
     def prepare(self):
-        # Groups actions, then create and optionally run batches
-        # Group the actions into lists of appropriate size
+        """ Groups actions into batches of the appropriate size. """
         grouped_actions_list = list(self.group_actions())
         created_batches = list()
 
@@ -138,8 +136,7 @@ class BatchHelper:
         self.status = BatchHelperStatus.PREPARED
 
     def wait_for_required_batch(self):
-        # Wait for the required batch to finish, if any
-        # Applies only when the new batches are dependent or linear
+        """ When the batches are dependent or linear, waits for the required batch to finish. """
 
         time_waited = 0
         completed = False
@@ -203,6 +200,7 @@ class BatchHelper:
             return True
 
     def check_batch_queue(self):
+        """ Returns the organization's batch queue: pending, active, and whether full. """
         pending_action_batches = self.dashboard_session.organizations.getOrganizationActionBatches(
             organizationId=self.organizationId,
             status='pending')
@@ -215,7 +213,7 @@ class BatchHelper:
         return pending_action_batches, active_action_batches, batch_queue_is_full
 
     def find_batch_queue_capacity(self):
-        # finds capacity to add a new action batch
+        """ Finds capacity on the batch queue. """
         pending_action_batches, active_action_batches, batch_queue_is_full = self.check_batch_queue()
         number_of_active_batches = len(active_action_batches)
         print(f'There are {number_of_active_batches} active action batches.')
@@ -248,7 +246,7 @@ class BatchHelper:
         return True
 
     def confirm_readiness_for_new_batch(self):
-        # confirm that we're ready to submit a new batch
+        """ Confirm that the org is ready to accept a new batch. """
         if self.dependent:
             # if dependent, check that the required batch has completed
             self.wait_for_required_batch()
@@ -256,7 +254,7 @@ class BatchHelper:
         return True
 
     def submit_action_batches(self):
-        # submit one, remove from list of new batches
+        """ Submit the next batch and remove it from the list of remaining batches. """
         try:
             new_batch_response = self.dashboard_session.organizations.createOrganizationActionBatch(**self.new_batches.pop(0))
         except meraki.APIError:
@@ -277,7 +275,7 @@ class BatchHelper:
             self.required_batch_id = new_batch_response['id']
 
     def generate_preview(self):
-
+        """ Generates a JSON preview of the new batches. """
         self.prepare()
 
         preview_json = json.dumps(self.new_batches, indent=2)
@@ -285,7 +283,7 @@ class BatchHelper:
             preview_file.write(preview_json)
 
     def execute(self):
-
+        """ Submits new batches. """
         while len(self.new_batches):
             self.status = BatchHelperStatus.WORKING
             # Loop as long as there are batches left to process
